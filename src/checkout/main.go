@@ -20,7 +20,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log/global"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/IBM/sarama"
@@ -665,7 +665,7 @@ func (cs *checkout) sendToPostProcessor(ctx context.Context, result *pb.OrderRes
 			span.SetAttributes(
 				attribute.Bool("messaging.kafka.producer.success", true),
 				attribute.Int("messaging.kafka.producer.duration_ms", int(time.Since(startTime).Milliseconds())),
-				attribute.KeyValue(semconv.MessagingKafkaMessageOffset(int(successMsg.Offset))),
+				semconv.MessagingKafkaOffsetKey.Int64(successMsg.Offset),
 			)
 			logger.Info(fmt.Sprintf("Successful to write message. offset: %v, duration: %v", successMsg.Offset, time.Since(startTime)))
 		case errMsg := <-cs.KafkaProducerClient.Errors():
@@ -712,12 +712,11 @@ func createProducerSpan(ctx context.Context, msg *sarama.ProducerMessage) trace.
 		fmt.Sprintf("%s publish", msg.Topic),
 		trace.WithSpanKind(trace.SpanKindProducer),
 		trace.WithAttributes(
-			semconv.PeerService("kafka"),
 			semconv.NetworkTransportTCP,
 			semconv.MessagingSystemKafka,
 			semconv.MessagingDestinationName(msg.Topic),
-			semconv.MessagingOperationPublish,
-			semconv.MessagingKafkaDestinationPartition(int(msg.Partition)),
+			semconv.MessagingOperationTypeSend,
+			semconv.MessagingDestinationPartitionID(strconv.Itoa(int(msg.Partition))),
 		),
 	)
 

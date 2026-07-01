@@ -7,6 +7,14 @@ the release.
 
 ## Unreleased
 
+* [checkout, product-catalog] Update Go semantic conventions imports to v1.40.0
+  to match the demo's declared schema version. In `checkout`, Kafka producer
+  span attributes change accordingly: `messaging.operation` is now
+  `messaging.operation.type` (`send`), `messaging.kafka.destination.partition`
+  is now `messaging.destination.partition.id` (string),
+  `messaging.kafka.message.offset` is now `messaging.kafka.offset`, and the
+  deprecated `peer.service` attribute is removed
+  ([#XXXX](https://github.com/open-telemetry/opentelemetry-demo/pull/XXXX))
 * [accounting] Run the Kafka consumer as a hosted background service so process
   shutdown can stop the consumer cleanly
   ([#3608](https://github.com/open-telemetry/opentelemetry-demo/pull/3608))
