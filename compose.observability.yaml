@@ -32,6 +32,7 @@ services:
       - MEMORY_MAX_TRACES=25000
     volumes:
       - ./src/jaeger/config.yml:/etc/jaeger/config.yml
+      - ./src/jaeger/ui-config.json:/etc/jaeger/ui-config.json
     logging:
       driver: "json-file"
       options:
@@ -134,10 +135,8 @@ services:
         max-size: "5m"
         max-file: "2"
 
-  # E2E latency bootstrap (prototype, one-shot): registers the OpenSearch ingest
-  # pipeline and index template that compute end-to-end pipeline latency for
-  # synthetic probe logs, then exits. The probes themselves are emitted by the
-  # load generator (E2E_LATENCY_PROBE_ENABLED).
+  # Register the OpenSearch processing needed for backend-observed pipeline
+  # latency before the load generator starts sending probes.
   e2e-latency-init:
     image: curlimages/curl:8.11.1
     container_name: e2e-latency-init
@@ -158,11 +157,10 @@ services:
         max-size: "5m"
         max-file: "2"
 
-  # Enable the E2E latency probe emitter in the load generator when the
-  # observability stack (with OpenSearch) is running.
   load-generator:
     environment:
-      - E2E_LATENCY_PROBE_ENABLED=true
+      - PIPELINE_LATENCY_PROBE_ENABLED=true
+      - PIPELINE_LATENCY_PROBE_INTERVAL=1
     depends_on:
       e2e-latency-init:
         condition: service_completed_successfully
@@ -231,5 +229,13 @@ services:
         condition: service_started
       opensearch:
         condition: service_healthy
+      opamp-server:
+        condition: service_healthy
+
+  cart:
+    environment:
+      - OPAMP_SERVER_ENDPOINT=wss://${OPAMP_SERVER_HOST}:4320/v1/opamp
+      - OPAMP_SERVER_TLS_INSECURE_SKIP_VERIFY=true
+    depends_on:
       opamp-server:
         condition: service_healthy

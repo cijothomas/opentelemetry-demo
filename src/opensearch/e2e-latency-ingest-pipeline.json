@@ -1,9 +1,9 @@
 {
-  "description": "Compute end-to-end pipeline latency for synthetic e2e probe logs (eventName == synthetic.e2e.probe).",
+  "description": "Compute backend-observed pipeline latency for demo telemetry probe events.",
   "processors": [
     {
       "set": {
-        "if": "ctx.eventName == 'synthetic.e2e.probe'",
+        "if": "ctx.eventName == 'demo.telemetry.pipeline.probe'",
         "field": "_ingest_ts_str",
         "value": "{{{_ingest.timestamp}}}"
       }
@@ -11,7 +11,7 @@
     {
       "script": {
         "lang": "painless",
-        "source": "if (ctx.eventName == 'synthetic.e2e.probe' && ctx._ingest_ts_str != null) { def emitted = ctx.attributes?.probe_emitted_at_unix_millis; if (emitted != null) { long ingest = Instant.parse(ctx._ingest_ts_str).toEpochMilli(); ctx.probe_e2e_latency_ms = ingest - (long)emitted; } }"
+        "source": "if (ctx.eventName == 'demo.telemetry.pipeline.probe' && ctx._ingest_ts_str != null && ctx['@timestamp'] != null) { long received = Instant.parse(ctx._ingest_ts_str).toEpochMilli(); long emitted = Instant.parse(ctx['@timestamp'].toString()).toEpochMilli(); long latency = received - emitted; ctx.probe_received_at = ctx._ingest_ts_str; ctx.probe_e2e_latency_ms = latency; ctx.probe_clock_skew_detected = latency < 0; }"
       }
     },
     {

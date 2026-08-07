@@ -4,6 +4,13 @@
   "template": {
     "settings": {
       "index.default_pipeline": "e2e-latency-probe"
+    },
+    "mappings": {
+      "properties": {
+        "probe_clock_skew_detected": { "type": "boolean" },
+        "probe_e2e_latency_ms": { "type": "long" },
+        "probe_received_at": { "type": "date" }
+      }
     }
   }
 }

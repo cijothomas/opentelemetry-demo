@@ -2,12 +2,8 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
-# One-shot bootstrap for the E2E latency probe (prototype).
-#
-# Registers an OpenSearch ingest pipeline and index template that compute
-# end-to-end pipeline latency for synthetic probe logs (see
-# e2e-latency-ingest-pipeline.json). Runs once after OpenSearch is healthy,
-# then exits.
+# Registers the ingest pipeline and index template used to calculate
+# backend-observed latency for synthetic probe logs.
 
 set -eu
 

@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "End-to-end pipeline latency measured with synthetic probe logs (eventName == synthetic.e2e.probe). Latency is computed at ingest time by OpenSearch (ingest time minus probe emit time).",
+  "description": "Backend-observed latency for synthetic log probes sent through the normal OpenTelemetry pipeline.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -20,7 +20,155 @@
   "panels": [
     {
       "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
-      "description": "Average and p99 end-to-end latency of synthetic probe logs over time.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+        "content": "### What this measures\n\nThe load generator emits an OpenTelemetry Event named `demo.telemetry.pipeline.probe` and exports it immediately. The probe follows the normal log path through the Collector, exporter batching, network, and OpenSearch. At ingest, OpenSearch subtracts the LogRecord `Timestamp` from its own ingest time.\n\nThis is **backend-observed latency for the probe path**, not a per-node breakdown. It requires synchronized producer and backend clocks. Missing probes indicate an availability problem; negative samples are reported separately as possible clock skew.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "11.5.2",
+      "title": "Backend-observed telemetry pipeline latency",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+      "description": "At least one probe should arrive during every two-minute window. A zero value means the probe path is unavailable or the emitter is stopped.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "noValue": "No probes received",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 5 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "bucketAggs": [],
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+          "format": "table",
+          "metrics": [ { "id": "1", "type": "count" } ],
+          "query": "eventName.keyword:\"demo.telemetry.pipeline.probe\" AND probe_received_at:[now-2m TO now]",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "probe_received_at"
+        }
+      ],
+      "title": "Probes received (last 2m)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+      "description": "Negative latency indicates that the producer clock is ahead of the OpenSearch clock. These samples are excluded from latency aggregates.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 5 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "bucketAggs": [],
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+          "format": "table",
+          "metrics": [ { "id": "1", "type": "count" } ],
+          "query": "eventName.keyword:\"demo.telemetry.pipeline.probe\" AND probe_clock_skew_detected:true",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "probe_received_at"
+        }
+      ],
+      "title": "Clock-skew samples",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+      "description": "Number of successfully received probes in the selected time range. Use this to judge whether tail percentiles have enough samples.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 5 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "bucketAggs": [],
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+          "format": "table",
+          "metrics": [ { "id": "1", "type": "count" } ],
+          "query": "eventName.keyword:\"demo.telemetry.pipeline.probe\"",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "probe_received_at"
+        }
+      ],
+      "title": "Probe samples",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
+      "description": "Time from probe emission to OpenSearch ingest. Tail latency commonly exposes exporter batching and backpressure that averages hide.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -51,8 +199,8 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 0 },
-      "id": 1,
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 10 },
+      "id": 5,
       "options": {
         "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
@@ -60,111 +208,35 @@
       "pluginVersion": "11.5.2",
       "targets": [
         {
+          "bucketAggs": [
+            { "field": "probe_received_at", "id": "4", "settings": { "interval": "auto", "min_doc_count": "0" }, "type": "date_histogram" }
+          ],
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
-          "query": "eventName.keyword:\"synthetic.e2e.probe\"",
-          "queryType": "lucene",
-          "timeField": "observedTimestamp",
+          "format": "time_series",
           "metrics": [
-            { "id": "1", "type": "avg", "field": "probe_e2e_latency_ms" },
-            { "id": "2", "type": "percentiles", "field": "probe_e2e_latency_ms", "settings": { "percents": ["99"] } }
+            { "field": "probe_e2e_latency_ms", "id": "1", "type": "avg" },
+            { "field": "probe_e2e_latency_ms", "id": "2", "settings": { "percents": ["95"] }, "type": "percentiles" },
+            { "field": "probe_e2e_latency_ms", "id": "3", "settings": { "percents": ["99"] }, "type": "percentiles" }
           ],
-          "bucketAggs": [
-            { "type": "date_histogram", "field": "observedTimestamp", "id": "3", "settings": { "interval": "auto", "min_doc_count": "0" } }
-          ],
-          "refId": "A"
+          "query": "eventName.keyword:\"demo.telemetry.pipeline.probe\" AND probe_e2e_latency_ms:[0 TO *]",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "probe_received_at"
         }
       ],
-      "title": "E2E Pipeline Latency (avg and p99)",
+      "title": "Backend-observed latency (avg, p95, p99)",
       "type": "timeseries"
-    },
-    {
-      "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
-      "description": "Average end-to-end latency over the selected time range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 500 }, { "color": "red", "value": 2000 } ] },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
-      "id": 2,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false },
-        "textMode": "auto"
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
-          "query": "eventName.keyword:\"synthetic.e2e.probe\"",
-          "queryType": "lucene",
-          "timeField": "observedTimestamp",
-          "metrics": [ { "id": "1", "type": "avg", "field": "probe_e2e_latency_ms" } ],
-          "bucketAggs": [
-            { "type": "date_histogram", "field": "observedTimestamp", "id": "3", "settings": { "interval": "auto", "min_doc_count": "0" } }
-          ],
-          "refId": "A"
-        }
-      ],
-      "title": "Avg Latency",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
-      "description": "p99 end-to-end latency over the selected time range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 500 }, { "color": "red", "value": 2000 } ] },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 5 },
-      "id": 3,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["max"], "fields": "", "values": false },
-        "textMode": "auto"
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "webstore-logs" },
-          "query": "eventName.keyword:\"synthetic.e2e.probe\"",
-          "queryType": "lucene",
-          "timeField": "observedTimestamp",
-          "metrics": [ { "id": "1", "type": "percentiles", "field": "probe_e2e_latency_ms", "settings": { "percents": ["99"] } } ],
-          "bucketAggs": [
-            { "type": "date_histogram", "field": "observedTimestamp", "id": "3", "settings": { "interval": "auto", "min_doc_count": "0" } }
-          ],
-          "refId": "A"
-        }
-      ],
-      "title": "p99 Latency",
-      "type": "stat"
     }
   ],
   "preload": false,
   "refresh": "10s",
   "schemaVersion": 40,
-  "tags": ["opentelemetry", "latency"],
+  "tags": ["opentelemetry", "pipeline", "latency", "synthetic-probe"],
   "templating": { "list": [] },
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "E2E Pipeline Latency (Synthetic Probes)",
+  "title": "Telemetry Pipeline Latency",
   "uid": "otel-demo-e2e-latency-probe",
   "version": 1,
   "weekStart": ""
