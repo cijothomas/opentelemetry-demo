@@ -28,7 +28,7 @@
       "id": 1,
       "options": {
         "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
-        "content": "### What this measures\n\nThe load generator emits an OpenTelemetry Event named `demo.telemetry.pipeline.probe` and exports it immediately. The probe follows the normal log path through the Collector, exporter batching, network, and OpenSearch. At ingest, OpenSearch subtracts the LogRecord `Timestamp` from its own ingest time.\n\nThis is **backend-observed latency for the probe path**, not a per-node breakdown. It requires synchronized producer and backend clocks. Missing probes indicate an availability problem; negative samples are reported separately as possible clock skew.",
+        "content": "### What this measures\n\nThe load generator emits an OpenTelemetry Event named `demo.telemetry.pipeline.probe` through its normal batched SDK log path. The probe then traverses the Collector, exporter batching, network, and OpenSearch. At ingest, OpenSearch subtracts the LogRecord `Timestamp` from its own ingest time.\n\nBackends that preserve an ingest timestamp can calculate the same latency for ordinary logs. Probes provide a controlled, continuous, low-volume canary when per-record calculation or aggregation is expensive.\n\nThis is **backend-observed latency for the probe path**, not a per-node breakdown. It requires synchronized producer and backend clocks. Missing probes indicate an availability problem; negative samples are reported separately as possible clock skew.",
         "mode": "markdown"
       },
       "pluginVersion": "11.5.2",

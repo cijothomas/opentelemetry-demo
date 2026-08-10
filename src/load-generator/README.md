@@ -69,15 +69,22 @@ scenario's own `browser` options field, which k6 ignores for these.
 
 The observability configuration enables a lightweight log probe scenario. Once
 per second, the load generator emits an OpenTelemetry Event named
-`demo.telemetry.pipeline.probe` with its LogRecord `Timestamp` set immediately
-before export. A simple log processor exports the probe without SDK batching.
+`demo.telemetry.pipeline.probe` with its LogRecord `Timestamp` set when the
+Event is created. The probe uses the same batched SDK log processor as the load
+generator's other logs, so producer-side SDK buffering is included.
 
 The probe follows the same Collector log pipeline as application logs. At
 ingest, OpenSearch calculates the difference between its ingest timestamp and
 the LogRecord timestamp. The **Telemetry Pipeline Latency** Grafana dashboard
 shows average and tail latency, recent probe arrivals, and possible clock skew.
 
-This is backend-observed latency for the probe path. It includes the Collector,
-exporter batching, network, and OpenSearch ingest, but it does not identify time
-spent in individual Collector components. The producer and OpenSearch clocks
-must be synchronized for the latency value to be accurate.
+Backends that preserve a per-record ingest timestamp can apply the same
+calculation to ordinary logs. Synthetic probes provide a controlled,
+continuous, low-volume canary when calculating or aggregating latency across
+every record is expensive, and make missing arrivals visible when application
+logging is quiet.
+
+This is backend-observed latency for the probe path. It includes producer-side
+SDK batching, the Collector, exporter batching, network, and OpenSearch ingest,
+but it does not identify time spent in individual components. The producer and
+OpenSearch clocks must be synchronized for the latency value to be accurate.

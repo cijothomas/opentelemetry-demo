@@ -25,9 +25,9 @@ func (l *recordingLogger) Emit(_ context.Context, record otellog.Record) {
 
 func TestEmitPipelineProbe(t *testing.T) {
 	recorder := &recordingLogger{}
-	previousLogger := globalProbeLogger
-	globalProbeLogger = recorder
-	t.Cleanup(func() { globalProbeLogger = previousLogger })
+	previousLogger := globalLogger
+	globalLogger = recorder
+	t.Cleanup(func() { globalLogger = previousLogger })
 
 	before := time.Now()
 	emitPipelineProbe()

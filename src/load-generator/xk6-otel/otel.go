@@ -36,14 +36,11 @@ func init() {
 // ---- global providers (shared across all VUs) --------------------------------
 
 var (
-	globalTracer      trace.Tracer
-	globalLogger      otellog.Logger
-	globalProbeLogger otellog.Logger
-	globalResource    *resource.Resource
-	providerOnce      sync.Once
-	providerErr       error
-	probeProviderOnce sync.Once
-	probeProviderErr  error
+	globalTracer trace.Tracer
+	globalLogger otellog.Logger
+	providerOnce sync.Once
+	providerErr  error
+	loggerErr    error
 )
 
 func initProviders() {
@@ -60,8 +57,6 @@ func initProviders() {
 		if err != nil {
 			res = resource.Default()
 		}
-		globalResource = res
-
 		traceExp, err := otlptracehttp.New(ctx)
 		if err != nil {
 			providerErr = fmt.Errorf("xk6-otel: creating OTLP trace exporter: %w", err)
@@ -76,6 +71,7 @@ func initProviders() {
 
 		// Log provider — non-fatal if unavailable so traces still work.
 		if logExp, lerr := otlploghttp.New(ctx); lerr != nil {
+			loggerErr = fmt.Errorf("xk6-otel: creating OTLP log exporter: %w", lerr)
 			fmt.Fprintf(os.Stderr, "xk6-otel: warning: OTLP log exporter unavailable: %v\n", lerr)
 		} else {
 			lp := sdklog.NewLoggerProvider(
@@ -100,22 +96,6 @@ func initProviders() {
 				fmt.Fprintf(os.Stderr, "xk6-otel: warning: runtime instrumentation unavailable: %v\n", err)
 			}
 		}
-	})
-}
-
-func initProbeProvider() {
-	probeProviderOnce.Do(func() {
-		probeExp, err := otlploghttp.New(context.Background())
-		if err != nil {
-			probeProviderErr = fmt.Errorf("xk6-otel: creating OTLP probe exporter: %w", err)
-			return
-		}
-
-		probeLP := sdklog.NewLoggerProvider(
-			sdklog.WithProcessor(sdklog.NewSimpleProcessor(probeExp)),
-			sdklog.WithResource(globalResource),
-		)
-		globalProbeLogger = probeLP.Logger("load-generator.pipeline-probe")
 	})
 }
 
@@ -187,9 +167,8 @@ func (m *ModuleInstance) newProbeEmitter(call sobek.ConstructorCall, rt *sobek.R
 	if providerErr != nil {
 		panic(rt.NewGoError(providerErr))
 	}
-	initProbeProvider()
-	if probeProviderErr != nil {
-		panic(rt.NewGoError(probeProviderErr))
+	if loggerErr != nil {
+		panic(rt.NewGoError(loggerErr))
 	}
 
 	if err := call.This.Set("emit", emitPipelineProbe); err != nil {
@@ -200,7 +179,7 @@ func (m *ModuleInstance) newProbeEmitter(call sobek.ConstructorCall, rt *sobek.R
 }
 
 func emitPipelineProbe() {
-	if globalProbeLogger == nil {
+	if globalLogger == nil {
 		return
 	}
 
@@ -211,7 +190,7 @@ func emitPipelineProbe() {
 	r.SetEventName("demo.telemetry.pipeline.probe")
 	r.SetSeverity(otellog.SeverityInfo)
 	r.SetBody(otellog.StringValue("Telemetry pipeline latency probe"))
-	globalProbeLogger.Emit(context.Background(), r)
+	globalLogger.Emit(context.Background(), r)
 }
 
 // newTracer is called when the script does `new Tracer()`. Sobek recognises
